@@ -115,6 +115,18 @@ testRun(void)
             "P00   INFO: restore command end: completed successfully ([TIME]ms)");
 
         // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("detail without statistics");
+
+        // Given
+        harnessLogLevelSet(logLevelDetail);
+
+        // When
+        TEST_RESULT_VOID(cmdEnd(NULL), "command end without statistics");
+
+        // Then
+        TEST_RESULT_LOG("P00   INFO: restore command end: completed successfully ([TIME]ms)");
+
+        // -------------------------------------------------------------------------------------------------------------------------
         TEST_TITLE("command end with stat and without time");
 
         statInc(STRDEF("test"));
@@ -137,6 +149,46 @@ testRun(void)
             "P00   INFO: archive-get command begin " PROJECT_VERSION ": --no-config --exec-id=1-test --log-timestamp"
             " --pg1-path=/pg1 --pg2-path=/pg2 --repo1-cipher-pass=<redacted> --repo1-cipher-type=aes-256-cbc --reset-repo1-host"
             " --repo1-path=\"/path/to the/repo\" --stanza=test");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("statistics at detail when command logging defaults to debug");
+
+        // Given
+        argList = strLstNew();
+        HRN_CFG_LOAD(cfgCmdInfo, argList, .noStd = true);
+        TEST_RESULT_INT(cfgLogLevelDefault(), logLevelDebug, "command logging defaults to debug");
+
+        // When
+        TEST_RESULT_VOID(cmdBegin(), "command begin is below the configured log level");
+        TEST_RESULT_VOID(cmdEnd(NULL), "command end with statistics");
+
+        // Then
+        TEST_RESULT_LOG("P00 DETAIL: statistics: {\"test\":{\"total\":1}}");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("statistics at detail when debug-level command fails");
+
+        // Given
+        // The command and detail log level are retained from the successful invocation.
+
+        // When
+        TEST_RESULT_VOID(cmdEnd(STRDEF("aborted with exception [025]")), "command end with error and statistics");
+
+        // Then
+        TEST_RESULT_LOG("P00 DETAIL: statistics: {\"test\":{\"total\":1}}");
+
+        // -------------------------------------------------------------------------------------------------------------------------
+        TEST_TITLE("statistics stay suppressed below detail");
+
+        // Given
+        harnessLogLevelSet(logLevelWarn);
+
+        // When
+        TEST_RESULT_VOID(cmdEnd(NULL), "command end below detail");
+
+        // Then
+        TEST_RESULT_LOG("");
+        harnessLogLevelSet(logLevelDetail);
 
         harnessLogLevelReset();
     }
